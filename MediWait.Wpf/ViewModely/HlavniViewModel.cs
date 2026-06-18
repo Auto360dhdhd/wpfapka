@@ -1,9 +1,5 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Windows;
-using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Media;
 using MediWait.Wpf.Data;
 using MediWait.Wpf.Modely;
 using MediWait.Wpf.MVVM;
@@ -13,21 +9,21 @@ namespace MediWait.Wpf.ViewModely;
 
 public sealed class HlavniViewModel : ZakladViewModel
 {
-    private static readonly Brush TmavePozadi = new SolidColorBrush(Color.FromRgb(30, 30, 34));
+    private static readonly Color TmavePozadi = Color.FromRgb(30, 30, 34);
+    private static readonly Color SvetlePozadi = Colors.WhiteSmoke;
     private readonly DatabazeSluzba _databazeSluzba;
     private readonly SenzorovaSluzba _senzorovaSluzba;
     private int _upravovaneId;
-    private DateTime? _datumNavstevy = DateTime.Today;
+    private DateTime _datumNavstevy = DateTime.Today;
     private string _casNavstevy = DateTime.Now.ToString("HH:mm");
     private string _jmenoLekare = string.Empty;
     private string _nazevLeku = string.Empty;
     private string _poznamka = string.Empty;
-    private int _vybranaKarta;
     private string _nouzovaZprava = "Nouzové kontakty připraveny";
-    private Visibility _nouzoveKontaktyViditelnost = Visibility.Collapsed;
+    private bool _jeNouzoveKontaktyViditelne;
     private bool _jeTmavyMotiv;
     private bool _simulovaneNizkeOsvetleni;
-    private Brush _pozadiAplikace = Brushes.WhiteSmoke;
+    private Color _pozadiAplikace = SvetlePozadi;
     private string _stavSenzoru = string.Empty;
 
     public HlavniViewModel(DatabazeSluzba databazeSluzba, SenzorovaSluzba senzorovaSluzba)
@@ -36,15 +32,9 @@ public sealed class HlavniViewModel : ZakladViewModel
         _senzorovaSluzba = senzorovaSluzba;
 
         VsechnyNavstevy = new ObservableCollection<Navsteva>();
-
-        DnesniPolozky = new ListCollectionView(VsechnyNavstevy);
-        DnesniPolozky.Filter = o => o is Navsteva n && n.Termin.Date == DateTime.Today;
-
-        BudouciPolozky = new ListCollectionView(VsechnyNavstevy);
-        BudouciPolozky.Filter = o => o is Navsteva n && n.Termin.Date >= DateTime.Today;
-
-        HistorickePolozky = new ListCollectionView(VsechnyNavstevy);
-        HistorickePolozky.Filter = o => o is Navsteva n && (n.Termin.Date < DateTime.Today || n.JeHotovo);
+        DnesniPolozky = new ObservableCollection<Navsteva>();
+        BudouciPolozky = new ObservableCollection<Navsteva>();
+        HistorickePolozky = new ObservableCollection<Navsteva>();
 
         UlozitPrikaz = new RelayPrikaz(async _ => await UlozitAsync(), _ => LzeUlozit());
         VymazatFormularPrikaz = new RelayPrikaz(_ => VymazatFormular());
@@ -58,11 +48,11 @@ public sealed class HlavniViewModel : ZakladViewModel
 
         _senzorovaSluzba.ZatraseniDetekovano += (_, _) =>
         {
-            Application.Current.Dispatcher.Invoke(OtevritNouzoveKontakty);
+            MainThread.BeginInvokeOnMainThread(OtevritNouzoveKontakty);
         };
         _senzorovaSluzba.ZmenaDoporucenehoMotivu += (_, tmavy) =>
         {
-            Application.Current.Dispatcher.Invoke(() => NastavitMotiv(tmavy));
+            MainThread.BeginInvokeOnMainThread(() => NastavitMotiv(tmavy));
         };
 
         _senzorovaSluzba.Spustit();
@@ -73,11 +63,11 @@ public sealed class HlavniViewModel : ZakladViewModel
     }
 
     public ObservableCollection<Navsteva> VsechnyNavstevy { get; }
-    public ICollectionView DnesniPolozky { get; }
-    public ICollectionView BudouciPolozky { get; }
-    public ICollectionView HistorickePolozky { get; }
+    public ObservableCollection<Navsteva> DnesniPolozky { get; }
+    public ObservableCollection<Navsteva> BudouciPolozky { get; }
+    public ObservableCollection<Navsteva> HistorickePolozky { get; }
 
-    public DateTime? DatumNavstevy
+    public DateTime DatumNavstevyNonNullable
     {
         get => _datumNavstevy;
         set
@@ -123,25 +113,19 @@ public sealed class HlavniViewModel : ZakladViewModel
         set => Nastavit(ref _poznamka, value);
     }
 
-    public int VybranaKarta
-    {
-        get => _vybranaKarta;
-        set => Nastavit(ref _vybranaKarta, value);
-    }
-
     public string NouzovaZprava
     {
         get => _nouzovaZprava;
         set => Nastavit(ref _nouzovaZprava, value);
     }
 
-    public Visibility NouzoveKontaktyViditelnost
+    public bool JeNouzoveKontaktyViditelne
     {
-        get => _nouzoveKontaktyViditelnost;
-        set => Nastavit(ref _nouzoveKontaktyViditelnost, value);
+        get => _jeNouzoveKontaktyViditelne;
+        set => Nastavit(ref _jeNouzoveKontaktyViditelne, value);
     }
 
-    public Brush PozadiAplikace
+    public Color PozadiAplikace
     {
         get => _pozadiAplikace;
         set => Nastavit(ref _pozadiAplikace, value);
@@ -177,9 +161,9 @@ public sealed class HlavniViewModel : ZakladViewModel
         }
         catch (Exception vyjimka)
         {
-            Application.Current.Dispatcher.Invoke(() =>
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                NouzoveKontaktyViditelnost = Visibility.Visible;
+                JeNouzoveKontaktyViditelne = true;
                 NouzovaZprava = $"Inicializace selhala: {vyjimka.Message}";
             });
         }
@@ -200,15 +184,14 @@ public sealed class HlavniViewModel : ZakladViewModel
 
     private bool LzeUlozit()
     {
-        return DatumNavstevy.HasValue &&
-               TimeSpan.TryParse(CasNavstevy, out _) &&
+        return TimeSpan.TryParse(CasNavstevy, out _) &&
                !string.IsNullOrWhiteSpace(JmenoLekare) &&
                !string.IsNullOrWhiteSpace(NazevLeku);
     }
 
     private async Task UlozitAsync()
     {
-        if (!LzeUlozit() || DatumNavstevy is null)
+        if (!LzeUlozit())
         {
             return;
         }
@@ -218,7 +201,7 @@ public sealed class HlavniViewModel : ZakladViewModel
         var navsteva = new Navsteva
         {
             Id = _upravovaneId,
-            Termin = DatumNavstevy.Value.Date + cas,
+            Termin = DatumNavstevyNonNullable.Date + cas,
             Lekar = JmenoLekare.Trim(),
             Lek = NazevLeku.Trim(),
             Poznamka = Poznamka.Trim(),
@@ -238,7 +221,7 @@ public sealed class HlavniViewModel : ZakladViewModel
         }
 
         _upravovaneId = navsteva.Id;
-        DatumNavstevy = navsteva.Termin.Date;
+        DatumNavstevyNonNullable = navsteva.Termin.Date;
         CasNavstevy = navsteva.Termin.ToString("HH:mm");
         JmenoLekare = navsteva.Lekar;
         NazevLeku = navsteva.Lek;
@@ -271,7 +254,7 @@ public sealed class HlavniViewModel : ZakladViewModel
     private void VymazatFormular()
     {
         _upravovaneId = 0;
-        DatumNavstevy = DateTime.Today;
+        DatumNavstevyNonNullable = DateTime.Today;
         CasNavstevy = DateTime.Now.ToString("HH:mm");
         JmenoLekare = string.Empty;
         NazevLeku = string.Empty;
@@ -280,17 +263,14 @@ public sealed class HlavniViewModel : ZakladViewModel
 
     private void OtevritNouzoveKontakty()
     {
-        NouzoveKontaktyViditelnost = Visibility.Visible;
-        VybranaKarta = 0;
+        JeNouzoveKontaktyViditelne = true;
         NouzovaZprava = $"Aktivováno {DateTime.Now:HH:mm:ss} - připravené kontakty pro rychlou pomoc";
     }
 
     private void NastavitMotiv(bool tmavy)
     {
         _jeTmavyMotiv = tmavy;
-        PozadiAplikace = tmavy
-            ? TmavePozadi
-            : Brushes.WhiteSmoke;
+        PozadiAplikace = tmavy ? TmavePozadi : SvetlePozadi;
     }
 
     private void PrepnoutSvetelnySenzor()
@@ -319,9 +299,18 @@ public sealed class HlavniViewModel : ZakladViewModel
 
     private void ObnovitPohledy()
     {
-        DnesniPolozky.Refresh();
-        BudouciPolozky.Refresh();
-        HistorickePolozky.Refresh();
+        NahraditKolekci(DnesniPolozky, VsechnyNavstevy.Where(n => n.Termin.Date == DateTime.Today));
+        NahraditKolekci(BudouciPolozky, VsechnyNavstevy.Where(n => n.Termin.Date >= DateTime.Today));
+        NahraditKolekci(HistorickePolozky, VsechnyNavstevy.Where(n => n.Termin.Date < DateTime.Today || n.JeHotovo));
+    }
+
+    private static void NahraditKolekci(ObservableCollection<Navsteva> cil, IEnumerable<Navsteva> zdroj)
+    {
+        cil.Clear();
+        foreach (var navsteva in zdroj)
+        {
+            cil.Add(navsteva);
+        }
     }
 
     private void AktualizovatStavUlozeni()

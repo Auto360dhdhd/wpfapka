@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:prevodniky="clr-namespace:MediWait.Wpf.Prevodniky"
+             xmlns:modely="clr-namespace:MediWait.Wpf.Modely"
+             x:Class="MediWait.Wpf.MainPage"
+             x:Name="RootPage"
+             Title="MediWait">
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <prevodniky:StavTerminuNaBarvuPrevodnik x:Key="StavTerminuNaBarvuPrevodnik" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="14" Padding="16" BackgroundColor="{Binding PozadiAplikace}">
+            <Border BackgroundColor="{StaticResource BarvaPrimarni}" StrokeThickness="0" Padding="16" StrokeShape="RoundRectangle 0,0,16,16">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="MediWait" FontSize="32" FontAttributes="Bold" TextColor="White" />
+                    <Label Text="Digitální čekárenský přehled návštěv u lékaře" TextColor="White" Opacity="0.9" />
+                    <Label Text="{Binding StavSenzoru}" TextColor="White" Opacity="0.85" FontSize="12" />
+                    <HorizontalStackLayout Wrap="Wrap" Spacing="8">
+                        <Button Text="Přepnout motiv" Command="{Binding PrepnoutMotivPrikaz}" />
+                        <Button Text="Nouzové kontakty" Command="{Binding OtevritNouzoveKontaktyPrikaz}" />
+                        <Button Text="Simulovat zatřesení" Command="{Binding SimulovatZatraseniPrikaz}" />
+                        <Button Text="Přepnout senzor" Command="{Binding PrepnoutSenzorPrikaz}" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White" Padding="14" StrokeShape="RoundRectangle 14" StrokeThickness="0">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Nová nebo upravená návštěva" FontSize="20" FontAttributes="Bold" />
+                    <Label Text="Termín" />
+                    <DatePicker Date="{Binding DatumNavstevyNonNullable}" />
+                    <Label Text="Čas" />
+                    <Entry Text="{Binding CasNavstevy}" />
+                    <Label Text="Lékař" />
+                    <Entry Text="{Binding JmenoLekare}" />
+                    <Label Text="Lék" />
+                    <Entry Text="{Binding NazevLeku}" />
+                    <Label Text="Poznámka" />
+                    <Editor Text="{Binding Poznamka}" AutoSize="TextChanges" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Button Text="Uložit" Command="{Binding UlozitPrikaz}" />
+                        <Button Text="Vyčistit" Command="{Binding VymazatFormularPrikaz}" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="Dnešní přehled" FontAttributes="Bold" FontSize="18" />
+            <CollectionView ItemsSource="{Binding DnesniPolozky}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="modely:Navsteva">
+                        <Border Padding="10" Margin="0,0,0,8" Stroke="#E4E4E4" StrokeShape="RoundRectangle 10">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding Termin, StringFormat='{0:dd.MM.yyyy HH:mm}'}"
+                                       TextColor="{Binding ., Converter={StaticResource StavTerminuNaBarvuPrevodnik}}"
+                                       FontAttributes="Bold" />
+                                <Label Text="{Binding Lekar}" FontAttributes="Bold" />
+                                <Label Text="{Binding Lek}" />
+                                <Label Text="{Binding Poznamka}" />
+                                <HorizontalStackLayout Spacing="6">
+                                    <Button Text="Upravit"
+                                            Command="{Binding Source={x:Reference RootPage}, Path=BindingContext.UpravitPrikaz}"
+                                            CommandParameter="{Binding .}" />
+                                    <Button Text="Hotovo"
+                                            Command="{Binding Source={x:Reference RootPage}, Path=BindingContext.OznacitJakoHotovoPrikaz}"
+                                            CommandParameter="{Binding .}" />
+                                    <Button Text="Smazat"
+                                            Command="{Binding Source={x:Reference RootPage}, Path=BindingContext.SmazatPrikaz}"
+                                            CommandParameter="{Binding .}" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="Kalendář" FontAttributes="Bold" FontSize="18" />
+            <CollectionView ItemsSource="{Binding BudouciPolozky}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="modely:Navsteva">
+                        <VerticalStackLayout Margin="0,0,0,8" Spacing="2">
+                            <Label Text="{Binding Termin, StringFormat='{0:dddd dd.MM.yyyy HH:mm}'}"
+                                   TextColor="{Binding ., Converter={StaticResource StavTerminuNaBarvuPrevodnik}}"
+                                   FontAttributes="Bold" />
+                            <Label Text="{Binding Lekar}" />
+                        </VerticalStackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="Historie" FontAttributes="Bold" FontSize="18" />
+            <CollectionView ItemsSource="{Binding HistorickePolozky}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="modely:Navsteva">
+                        <VerticalStackLayout Margin="0,0,0,10" Spacing="2">
+                            <Label Text="{Binding Termin, StringFormat='{0:dd.MM.yyyy HH:mm}'}" FontAttributes="Bold" />
+                            <Label Text="{Binding Lekar}" />
+                            <Label Text="{Binding Poznamka}" />
+                        </VerticalStackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Border Padding="12" StrokeThickness="0" BackgroundColor="#F9F2D6" StrokeShape="RoundRectangle 12" IsVisible="{Binding JeNouzoveKontaktyViditelne}">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Nouzové kontakty" FontSize="18" FontAttributes="Bold" />
+                    <Label Text="Záchranná služba: 155" />
+                    <Label Text="Rodinný kontakt: +420 777 123 456" />
+                    <Label Text="{Binding NouzovaZprava}" TextColor="DarkRed" FontAttributes="Bold" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

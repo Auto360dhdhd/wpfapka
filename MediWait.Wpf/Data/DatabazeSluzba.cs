@@ -1,7 +1,6 @@
 using Microsoft.Data.Sqlite;
 using MediWait.Wpf.Modely;
 using System.Globalization;
-using System.IO;
 
 namespace MediWait.Wpf.Data;
 
@@ -11,8 +10,7 @@ public sealed class DatabazeSluzba
 
     public DatabazeSluzba()
     {
-        var slozka = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var cilovaSlozka = Path.Combine(slozka, "MediWait");
+        var cilovaSlozka = Path.Combine(FileSystem.AppDataDirectory, "MediWait");
         Directory.CreateDirectory(cilovaSlozka);
         _cestaDatabaze = Path.Combine(cilovaSlozka, "mediwait.db");
     }
