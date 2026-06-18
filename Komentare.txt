@@ -1,0 +1,3 @@
+Aplikace MediWait je desktopová WPF implementace čekárenského správce návštěv.
+Používá MVVM architekturu, SQLite úložiště a práci se senzory dostupnými ve Windows.
+Termíny jsou barevně zvýrazněné převodníkem a ovládání probíhá přes commandy s parametry.
