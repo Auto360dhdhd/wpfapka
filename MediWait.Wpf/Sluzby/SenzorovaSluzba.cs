@@ -1,4 +1,4 @@
-using Windows.Devices.Sensors;
+using Microsoft.Maui.Devices.Sensors;
 
 namespace MediWait.Wpf.Sluzby;
 
@@ -6,33 +6,24 @@ public sealed class SenzorovaSluzba
 {
     private const double PrahZatraseni = 1.8;
     private const float PrahNizkehoOsvetleniLux = 80f;
-    private readonly Accelerometer? _akcelerometr;
-    private readonly LightSensor? _svetelnySenzor;
+    private readonly IAccelerometer _akcelerometr;
+    private readonly ILightSensor _svetelnySenzor;
     private bool _spusteno;
     private bool _simulovaneNizkeOsvetleni;
 
     public SenzorovaSluzba()
     {
-        try
-        {
-            _akcelerometr = Accelerometer.GetDefault();
-            _svetelnySenzor = LightSensor.GetDefault();
-        }
-        catch (Exception vyjimka)
-        {
-            _akcelerometr = null;
-            _svetelnySenzor = null;
-            PosledniChybaInicializace = vyjimka.Message;
-        }
+        _akcelerometr = Accelerometer.Default;
+        _svetelnySenzor = LightSensor.Default;
     }
 
     public event EventHandler? ZatraseniDetekovano;
     public event EventHandler<bool>? ZmenaDoporucenehoMotivu;
 
-    public bool JeAkcelerometrDostupny => _akcelerometr is not null;
-    public bool JeSvetelnySenzorDostupny => _svetelnySenzor is not null;
+    public bool JeAkcelerometrDostupny => _akcelerometr.IsSupported;
+    public bool JeSvetelnySenzorDostupny => _svetelnySenzor.IsSupported;
     public bool JeSimulovaneNizkeOsvetleni => _simulovaneNizkeOsvetleni;
-    public string PosledniChybaInicializace { get; } = string.Empty;
+    public string PosledniChybaInicializace { get; private set; } = string.Empty;
 
     public void Spustit()
     {
@@ -41,19 +32,32 @@ public sealed class SenzorovaSluzba
             return;
         }
 
-        if (_akcelerometr is not null)
+        try
         {
-            _akcelerometr.ReportInterval = Math.Max(_akcelerometr.MinimumReportInterval, 100);
-            _akcelerometr.ReadingChanged += PriZmeneAkcelerometru;
-        }
+            if (_akcelerometr.IsSupported)
+            {
+                _akcelerometr.ReadingChanged += PriZmeneAkcelerometru;
+                if (!_akcelerometr.IsMonitoring)
+                {
+                    _akcelerometr.Start(SensorSpeed.UI);
+                }
+            }
 
-        if (_svetelnySenzor is not null)
+            if (_svetelnySenzor.IsSupported)
+            {
+                _svetelnySenzor.ReadingChanged += PriZmeneSvetelnehoSenzoru;
+                if (!_svetelnySenzor.IsMonitoring)
+                {
+                    _svetelnySenzor.Start(SensorSpeed.UI);
+                }
+            }
+
+            _spusteno = true;
+        }
+        catch (Exception vyjimka)
         {
-            _svetelnySenzor.ReportInterval = Math.Max(_svetelnySenzor.MinimumReportInterval, 300);
-            _svetelnySenzor.ReadingChanged += PriZmeneSvetelnehoSenzoru;
+            PosledniChybaInicializace = vyjimka.Message;
         }
-
-        _spusteno = true;
     }
 
     public void SimulovatZatraseni()
@@ -68,13 +72,13 @@ public sealed class SenzorovaSluzba
         return _simulovaneNizkeOsvetleni;
     }
 
-    private void PriZmeneAkcelerometru(Accelerometer sender, AccelerometerReadingChangedEventArgs args)
+    private void PriZmeneAkcelerometru(object? sender, AccelerometerChangedEventArgs args)
     {
         var cteni = args.Reading;
         var sila = Math.Sqrt(
-            cteni.AccelerationX * cteni.AccelerationX +
-            cteni.AccelerationY * cteni.AccelerationY +
-            cteni.AccelerationZ * cteni.AccelerationZ);
+            cteni.Acceleration.X * cteni.Acceleration.X +
+            cteni.Acceleration.Y * cteni.Acceleration.Y +
+            cteni.Acceleration.Z * cteni.Acceleration.Z);
 
         if (sila > PrahZatraseni)
         {
@@ -82,8 +86,8 @@ public sealed class SenzorovaSluzba
         }
     }
 
-    private void PriZmeneSvetelnehoSenzoru(LightSensor sender, LightSensorReadingChangedEventArgs args)
+    private void PriZmeneSvetelnehoSenzoru(object? sender, LightSensorChangedEventArgs args)
     {
-        ZmenaDoporucenehoMotivu?.Invoke(this, args.Reading.IlluminanceInLux < PrahNizkehoOsvetleniLux);
+        ZmenaDoporucenehoMotivu?.Invoke(this, args.Reading.Illuminance < PrahNizkehoOsvetleniLux);
     }
 }
