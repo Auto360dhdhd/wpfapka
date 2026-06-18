@@ -9,6 +9,7 @@ public sealed class SenzorovaSluzba
     private readonly Accelerometer? _akcelerometr;
     private readonly LightSensor? _svetelnySenzor;
     private bool _spusteno;
+    private bool _simulovaneNizkeOsvetleni;
 
     public SenzorovaSluzba()
     {
@@ -30,6 +31,7 @@ public sealed class SenzorovaSluzba
 
     public bool JeAkcelerometrDostupny => _akcelerometr is not null;
     public bool JeSvetelnySenzorDostupny => _svetelnySenzor is not null;
+    public bool JeSimulovaneNizkeOsvetleni => _simulovaneNizkeOsvetleni;
     public string PosledniChybaInicializace { get; } = string.Empty;
 
     public void Spustit()
@@ -52,6 +54,18 @@ public sealed class SenzorovaSluzba
         }
 
         _spusteno = true;
+    }
+
+    public void SimulovatZatraseni()
+    {
+        ZatraseniDetekovano?.Invoke(this, EventArgs.Empty);
+    }
+
+    public bool PrepnoutSimulovaneOsvetleni()
+    {
+        _simulovaneNizkeOsvetleni = !_simulovaneNizkeOsvetleni;
+        ZmenaDoporucenehoMotivu?.Invoke(this, _simulovaneNizkeOsvetleni);
+        return _simulovaneNizkeOsvetleni;
     }
 
     private void PriZmeneAkcelerometru(Accelerometer sender, AccelerometerReadingChangedEventArgs args)

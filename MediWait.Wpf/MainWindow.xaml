@@ -31,6 +31,8 @@
                 <StackPanel Orientation="Horizontal" Grid.Column="1" VerticalAlignment="Center">
                     <Button Content="Přepnout motiv" Command="{Binding PrepnoutMotivPrikaz}" />
                     <Button Content="Nouzové kontakty" Command="{Binding OtevritNouzoveKontaktyPrikaz}" />
+                    <Button Content="Simulovat zatřesení" Command="{Binding SimulovatZatraseniPrikaz}" />
+                    <Button Content="Přepnout senzor" Command="{Binding PrepnoutSenzorPrikaz}" />
                 </StackPanel>
             </Grid>
         </Border>

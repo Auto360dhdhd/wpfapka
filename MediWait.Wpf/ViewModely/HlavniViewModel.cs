@@ -26,6 +26,7 @@ public sealed class HlavniViewModel : ZakladViewModel
     private string _nouzovaZprava = "Nouzové kontakty připraveny";
     private Visibility _nouzoveKontaktyViditelnost = Visibility.Collapsed;
     private bool _jeTmavyMotiv;
+    private bool _simulovaneNizkeOsvetleni;
     private Brush _pozadiAplikace = Brushes.WhiteSmoke;
     private string _stavSenzoru = string.Empty;
 
@@ -52,6 +53,8 @@ public sealed class HlavniViewModel : ZakladViewModel
         OznacitJakoHotovoPrikaz = new RelayPrikaz(async p => await OznacitJakoHotovoAsync(p as Navsteva));
         OtevritNouzoveKontaktyPrikaz = new RelayPrikaz(_ => OtevritNouzoveKontakty());
         PrepnoutMotivPrikaz = new RelayPrikaz(_ => NastavitMotiv(!_jeTmavyMotiv));
+        SimulovatZatraseniPrikaz = new RelayPrikaz(_ => SimulovatZatraseni());
+        PrepnoutSenzorPrikaz = new RelayPrikaz(_ => PrepnoutSvetelnySenzor());
 
         _senzorovaSluzba.ZatraseniDetekovano += (_, _) =>
         {
@@ -63,11 +66,8 @@ public sealed class HlavniViewModel : ZakladViewModel
         };
 
         _senzorovaSluzba.Spustit();
-        StavSenzoru = $"Akcelerometr: {(senzorovaSluzba.JeAkcelerometrDostupny ? "dostupný" : "není dostupný")} | Světelný senzor: {(senzorovaSluzba.JeSvetelnySenzorDostupny ? "dostupný" : "není dostupný")}";
-        if (!string.IsNullOrWhiteSpace(senzorovaSluzba.PosledniChybaInicializace))
-        {
-            StavSenzoru += $" | Inicializace: {senzorovaSluzba.PosledniChybaInicializace}";
-        }
+        _simulovaneNizkeOsvetleni = _senzorovaSluzba.JeSimulovaneNizkeOsvetleni;
+        AktualizovatStavSenzoru();
 
         _ = InicializovatBezpecneAsync();
     }
@@ -160,6 +160,8 @@ public sealed class HlavniViewModel : ZakladViewModel
     public ICommand OznacitJakoHotovoPrikaz { get; }
     public ICommand OtevritNouzoveKontaktyPrikaz { get; }
     public ICommand PrepnoutMotivPrikaz { get; }
+    public ICommand SimulovatZatraseniPrikaz { get; }
+    public ICommand PrepnoutSenzorPrikaz { get; }
 
     private async Task InicializovatAsync()
     {
@@ -289,6 +291,30 @@ public sealed class HlavniViewModel : ZakladViewModel
         PozadiAplikace = tmavy
             ? TmavePozadi
             : Brushes.WhiteSmoke;
+    }
+
+    private void PrepnoutSvetelnySenzor()
+    {
+        _simulovaneNizkeOsvetleni = _senzorovaSluzba.PrepnoutSimulovaneOsvetleni();
+        AktualizovatStavSenzoru();
+    }
+
+    private void SimulovatZatraseni()
+    {
+        _senzorovaSluzba.SimulovatZatraseni();
+    }
+
+    private void AktualizovatStavSenzoru()
+    {
+        var stavAkcelerometru = _senzorovaSluzba.JeAkcelerometrDostupny ? "dostupný" : "není dostupný";
+        var stavSvetelnehoSenzoru = _senzorovaSluzba.JeSvetelnySenzorDostupny ? "dostupný" : "není dostupný";
+        var stavOsvetleni = _simulovaneNizkeOsvetleni ? "nízké světlo" : "normální světlo";
+
+        StavSenzoru = $"Akcelerometr: {stavAkcelerometru} | Světelný senzor: {stavSvetelnehoSenzoru} | Emulace senzoru: {stavOsvetleni}";
+        if (!string.IsNullOrWhiteSpace(_senzorovaSluzba.PosledniChybaInicializace))
+        {
+            StavSenzoru += $" | Inicializace: {_senzorovaSluzba.PosledniChybaInicializace}";
+        }
     }
 
     private void ObnovitPohledy()
