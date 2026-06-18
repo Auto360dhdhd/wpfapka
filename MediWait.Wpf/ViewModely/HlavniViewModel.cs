@@ -53,7 +53,7 @@ public sealed class HlavniViewModel : ZakladViewModel
         OznacitJakoHotovoPrikaz = new RelayPrikaz(async p => await OznacitJakoHotovoAsync(p as Navsteva));
         OtevritNouzoveKontaktyPrikaz = new RelayPrikaz(_ => OtevritNouzoveKontakty());
         PrepnoutMotivPrikaz = new RelayPrikaz(_ => NastavitMotiv(!_jeTmavyMotiv));
-        SimulovatZatraseniPrikaz = new RelayPrikaz(_ => _senzorovaSluzba.SimulovatZatraseni());
+        SimulovatZatraseniPrikaz = new RelayPrikaz(_ => SimulovatZatraseni());
         PrepnoutSenzorPrikaz = new RelayPrikaz(_ => PrepnoutSvetelnySenzor());
 
         _senzorovaSluzba.ZatraseniDetekovano += (_, _) =>
@@ -299,9 +299,18 @@ public sealed class HlavniViewModel : ZakladViewModel
         AktualizovatStavSenzoru();
     }
 
+    private void SimulovatZatraseni()
+    {
+        _senzorovaSluzba.SimulovatZatraseni();
+    }
+
     private void AktualizovatStavSenzoru()
     {
-        StavSenzoru = $"Akcelerometr: {(_senzorovaSluzba.JeAkcelerometrDostupny ? "dostupný" : "není dostupný")} | Světelný senzor: {(_senzorovaSluzba.JeSvetelnySenzorDostupny ? "dostupný" : "není dostupný")} | Emulace senzoru: {(_simulovaneNizkeOsvetleni ? "nízké světlo" : "normální světlo")}";
+        var stavAkcelerometru = _senzorovaSluzba.JeAkcelerometrDostupny ? "dostupný" : "není dostupný";
+        var stavSvetelnehoSenzoru = _senzorovaSluzba.JeSvetelnySenzorDostupny ? "dostupný" : "není dostupný";
+        var stavOsvetleni = _simulovaneNizkeOsvetleni ? "nízké světlo" : "normální světlo";
+
+        StavSenzoru = $"Akcelerometr: {stavAkcelerometru} | Světelný senzor: {stavSvetelnehoSenzoru} | Emulace senzoru: {stavOsvetleni}";
         if (!string.IsNullOrWhiteSpace(_senzorovaSluzba.PosledniChybaInicializace))
         {
             StavSenzoru += $" | Inicializace: {_senzorovaSluzba.PosledniChybaInicializace}";
